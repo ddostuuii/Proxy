@@ -2,14 +2,16 @@ import os
 import requests
 import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.utils import executor
+from aiogram.types import BufferedInputFile
+from aiogram.filters import Command
+from aiogram.enums import ParseMode
 
-# 🔹 टेलीग्राम बॉट टोकन
+# 🔹 टेलीग्राम बॉट टोकन (अपना टोकन डालो)
 BOT_TOKEN = "8018672833:AAEzaymr68hGginHA4uLbcc0moacOFxwO5c"
 
 # 🔹 बॉट और डिस्पैचर सेटअप
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(bot)
+bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.MARKDOWN)
+dp = Dispatcher()
 
 # 🔹 प्रॉक्सी चेक करने का फ़ंक्शन
 async def check_proxies(file_path, message):
@@ -60,12 +62,12 @@ async def check_proxies(file_path, message):
     return working_file, bad_file, len(working_proxies), len(bad_proxies)
 
 # 🔹 /start कमांड हैंडलर
-@dp.message_handler(commands=["start"])
+@dp.message(Command("start"))
 async def start(message: types.Message):
     await message.reply("👋 Hello! Send me any **text file** (📄 `.txt`, `.csv`, `.log`, `.json`, etc.), and I will check proxies.")
 
 # 🔹 जब यूज़र कोई फ़ाइल भेजे
-@dp.message_handler(content_types=types.ContentType.DOCUMENT)
+@dp.message(lambda message: message.document)
 async def handle_document(message: types.Message):
     file_id = message.document.file_id
     file_name = message.document.file_name
@@ -92,15 +94,17 @@ async def handle_document(message: types.Message):
     # 🔹 फाइनल रिजल्ट भेजें
     await msg.edit_text(f"✅ Proxy checking completed!\n\n✅ **Working:** {working_count}\n❌ **Not Working:** {bad_count}")
 
-    # 🔹 वर्किंग प्रॉक्सी भेजो (FSInputFile हटा कर `types.InputFile` यूज़ करो)
+    # 🔹 वर्किंग प्रॉक्सी भेजो
     if working_count > 0:
-        await message.reply_document(types.InputFile(working_file))
+        with open(working_file, "rb") as file:
+            await message.reply_document(BufferedInputFile(file.read(), working_file))
     else:
         await message.reply("❌ No working proxies found!")
 
     # 🔹 खराब प्रॉक्सी भेजो
     if bad_count > 0:
-        await message.reply_document(types.InputFile(bad_file))
+        with open(bad_file, "rb") as file:
+            await message.reply_document(BufferedInputFile(file.read(), bad_file))
     else:
         await message.reply("✅ All proxies are working!")
 
@@ -109,6 +113,9 @@ async def handle_document(message: types.Message):
     os.remove(working_file)
     os.remove(bad_file)
 
-# 🔹 बॉट स्टार्ट करें
+# 🔹 बॉट स्टार्ट करने का नया तरीका (Aiogram v3)
+async def main():
+    await dp.start_polling(bot)
+
 if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True)
+    asyncio.run(main())
