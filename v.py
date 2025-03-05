@@ -2,10 +2,9 @@ import os
 import requests
 import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import FSInputFile
 from aiogram.utils import executor
 
-# 🔹 टेलीग्राम बॉट टोकन (अपना टोकन डालो)
+# 🔹 टेलीग्राम बॉट टोकन
 BOT_TOKEN = "8018672833:AAEzaymr68hGginHA4uLbcc0moacOFxwO5c"
 
 # 🔹 बॉट और डिस्पैचर सेटअप
@@ -93,15 +92,15 @@ async def handle_document(message: types.Message):
     # 🔹 फाइनल रिजल्ट भेजें
     await msg.edit_text(f"✅ Proxy checking completed!\n\n✅ **Working:** {working_count}\n❌ **Not Working:** {bad_count}")
 
-    # 🔹 वर्किंग प्रॉक्सी भेजो
+    # 🔹 वर्किंग प्रॉक्सी भेजो (FSInputFile हटा कर `types.InputFile` यूज़ करो)
     if working_count > 0:
-        await message.reply_document(FSInputFile(working_file))
+        await message.reply_document(types.InputFile(working_file))
     else:
         await message.reply("❌ No working proxies found!")
 
     # 🔹 खराब प्रॉक्सी भेजो
     if bad_count > 0:
-        await message.reply_document(FSInputFile(bad_file))
+        await message.reply_document(types.InputFile(bad_file))
     else:
         await message.reply("✅ All proxies are working!")
 
