@@ -5,12 +5,13 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import BufferedInputFile
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 
 # 🔹 टेलीग्राम बॉट टोकन (अपना टोकन डालो)
 BOT_TOKEN = "8018672833:AAEzaymr68hGginHA4uLbcc0moacOFxwO5c"
 
-# 🔹 बॉट और डिस्पैचर सेटअप
-bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.MARKDOWN)
+# 🔹 नया तरीका Aiogram v3.7+ के लिए
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
 
 # 🔹 प्रॉक्सी चेक करने का फ़ंक्शन
@@ -113,7 +114,7 @@ async def handle_document(message: types.Message):
     os.remove(working_file)
     os.remove(bad_file)
 
-# 🔹 बॉट स्टार्ट करने का नया तरीका (Aiogram v3)
+# 🔹 बॉट स्टार्ट करने का नया तरीका (Aiogram v3.7+)
 async def main():
     await dp.start_polling(bot)
 
