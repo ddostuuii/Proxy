@@ -2,17 +2,73 @@ import os
 import requests
 import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import BufferedInputFile
+from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
-# 🔹 टेलीग्राम बॉट टोकन (अपना टोकन डालो)
-BOT_TOKEN = "8018672833:AAEzaymr68hGginHA4uLbcc0moacOFxwO5c"
+# 🔹 टेलीग्राम बॉट टोकन और चैनल लिंक
+BOT_TOKEN = "7612290520:AAHUwfiZdxhmZ-JhNqM6cDdXV9QCWkSm9fA"  # अपना बॉट टोकन डालें
+CHANNEL_LINK = "https://t.me/+R4ram7JA-yY4MWQ1"  # चैनल इन्वाइट लिंक
 
 # 🔹 नया तरीका Aiogram v3.7+ के लिए
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
+
+# 🔹 बॉट खुद पता लगाएगा कि वह किस चैनल में एडमिन है
+async def get_admin_channel():
+    try:
+        admins = await bot.get_chat_administrators(CHANNEL_LINK)
+        return admins[0].chat.id if admins else None
+    except Exception:
+        return None
+
+# 🔹 चैनल जॉइन चेक करने का फ़ंक्शन
+async def is_user_member(user_id):
+    channel_id = await get_admin_channel()
+    if not channel_id:
+        return True  # अगर बॉट चैनल नहीं ढूंढ पाया, तो चेक स्किप करो
+    try:
+        member = await bot.get_chat_member(channel_id, user_id)
+        return member.status in ["member", "administrator", "creator"]
+    except Exception:
+        return False
+
+# 🔹 /start कमांड हैंडलर (चेक करेगा कि यूजर चैनल में है या नहीं)
+@dp.message(Command("start"))
+async def start(message: types.Message):
+    user_id = message.from_user.id
+    if not await is_user_member(user_id):
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)],
+                [InlineKeyboardButton(text="✅ I've Joined", callback_data="check_join")]
+            ]
+        )
+        await message.reply("⚠ **To use this bot, please join our channel first!**", reply_markup=keyboard)
+        return
+
+    # 🔹 अगर यूजर पहले से जॉइन है
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="👨‍💻 Developer", url="https://t.me/seedhe_maut_bot")]
+        ]
+    )
+    await message.reply("👋 Hello! Send me any **text file** (📄 `.txt`, `.csv`, `.log`, `.json`, etc.), and I will check proxies.", reply_markup=keyboard)
+
+# 🔹 "I've Joined" बटन हैंडलर (यूजर ने चैनल जॉइन किया या नहीं)
+@dp.callback_query(lambda call: call.data == "check_join")
+async def check_join(call: types.CallbackQuery):
+    user_id = call.from_user.id
+    if await is_user_member(user_id):
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="👨‍💻 Developer", url="https://t.me/seedhe_maut_bot")]
+            ]
+        )
+        await call.message.edit_text("✅ Thank you for joining! Now send me a **text file** with proxies.", reply_markup=keyboard)
+    else:
+        await call.answer("❌ You haven't joined the channel yet!", show_alert=True)
 
 # 🔹 प्रॉक्सी चेक करने का फ़ंक्शन
 async def check_proxies(file_path, message):
@@ -62,14 +118,20 @@ async def check_proxies(file_path, message):
 
     return working_file, bad_file, len(working_proxies), len(bad_proxies)
 
-# 🔹 /start कमांड हैंडलर
-@dp.message(Command("start"))
-async def start(message: types.Message):
-    await message.reply("👋 Hello! Send me any **text file** (📄 `.txt`, `.csv`, `.log`, `.json`, etc.), and I will check proxies.")
-
 # 🔹 जब यूज़र कोई फ़ाइल भेजे
 @dp.message(lambda message: message.document)
 async def handle_document(message: types.Message):
+    user_id = message.from_user.id
+    if not await is_user_member(user_id):
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)],
+                [InlineKeyboardButton(text="✅ I've Joined", callback_data="check_join")]
+            ]
+        )
+        await message.reply("⚠ **To use this bot, please join our channel first!**", reply_markup=keyboard)
+        return
+
     file_id = message.document.file_id
     file_name = message.document.file_name
 
