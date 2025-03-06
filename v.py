@@ -328,6 +328,39 @@ async def disapprove(message: types.Message):
     except Exception as e:
         print(f"Error: {e}")
         await message.reply("⚠ Usage: /disapprove <user_id>")
+        # 🔹 प्रॉक्सी फ़ाइल हैंडलर
+@dp.message(lambda message: message.document)
+async def handle_proxy_file(message: types.Message):
+    user_id = message.from_user.id
+
+    # 🔹 ब्लॉक और अप्रूवल चेक
+    if user_id in users_data["blocked"]:
+        return await message.reply("🚫 You are blocked from using this bot.")
+
+    max_proxies = None
+    if user_id not in users_data["approved"]:
+        max_proxies = 200  # नॉर्मल यूज़र्स के लिए लिमिट
+    
+    # 🔹 फ़ाइल डाउनलोड करें
+    file_id = message.document.file_id
+    file_info = await bot.get_file(file_id)
+    file_path = file_info.file_path
+    file_name = "uploaded_proxies.txt"
+
+    await bot.download_file(file_path, file_name)
+    
+    await message.reply("⏳ Checking proxies, please wait...")
+
+    # 🔹 प्रॉक्सी चेक करें
+    working_file, bad_file, good_count, bad_count = await check_proxies(file_name, message, max_proxies)
+
+    # 🔹 यूज़र को रिज़ल्ट भेजें
+    await message.reply(f"✅ **Proxy Check Completed!**\n\n🔹 Working: {good_count}\n🔹 Bad: {bad_count}")
+
+    # 🔹 वर्किंग और बैड प्रॉक्सी फ़ाइल भेजें
+    await message.reply_document(BufferedInputFile(open(working_file, "rb").read(), filename="maut ✅.txt"))
+    await message.reply_document(BufferedInputFile(open(bad_file, "rb").read(), filename="maut ❌.txt"))
+
 
 
 # 🔹 प्रॉक्सी चेकिंग फंक्शन
