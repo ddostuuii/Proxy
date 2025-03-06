@@ -288,10 +288,11 @@ async def help_command(message: types.Message):
 `/upload_valid` \\- Upload valid proxy file  
 `/upload_invalid` \\- Upload invalid proxy file  
 
-ℹ️ *For any bot\\-related questions, contact an admin.*
+ℹ️ *For any bot\\-related questions, contact an admin\\.*
     """
     
     await message.reply(commands_text, parse_mode="MarkdownV2")
+
 
 
 @dp.message(Command("total_users"))
