@@ -348,10 +348,19 @@ async def disapprove(message: types.Message):
 async def handle_proxy_file(message: types.Message):
     user_id = message.from_user.id
 
-    # 🔹 ब्लॉक और अप्रूवल चेक
+    # 🔹 ब्लॉक चेक
     if user_id in users_data["blocked"]:
         return await message.reply("🚫 You are blocked from using this bot.")
 
+    # 🔹 चैनल जॉइन चेक करें
+    if not await is_user_member(user_id):
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)],
+            [InlineKeyboardButton(text="✅ I've Joined", callback_data="check_join")]
+        ])
+        return await message.reply("❌ You must join the channel to use this bot!", reply_markup=keyboard)
+
+    # 🔹 यूजर अप्रूवल और लिमिट चेक करें
     max_proxies = None
     if user_id not in users_data["approved"]:
         max_proxies = 200  # नॉर्मल यूज़र्स के लिए लिमिट
@@ -372,12 +381,11 @@ async def handle_proxy_file(message: types.Message):
     # 🔹 यूज़र को रिज़ल्ट भेजें
     await message.reply(f"✅ **Proxy Check Completed!**\n\n🔹 Working: {good_count}\n🔹 Bad: {bad_count}")
 
-    # 🔹 सिर्फ उन्हीं फ़ाइलों को भेजें जिनमें डेटा हो
+    # 🔹 वर्किंग और बैड प्रॉक्सी फ़ाइल भेजें
     if good_count > 0:
         await message.reply_document(BufferedInputFile(open(working_file, "rb").read(), filename="maut ✅.txt"))
     if bad_count > 0:
         await message.reply_document(BufferedInputFile(open(bad_file, "rb").read(), filename="maut ❌.txt"))
-
 
     # 🔹 प्रॉक्सी चेक करें
     working_file, bad_file, good_count, bad_count = await check_proxies(file_name, message, max_proxies)
