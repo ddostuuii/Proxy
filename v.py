@@ -343,7 +343,7 @@ async def check_proxies(file_path, msg, max_proxies=None):
 
     for proxy in proxies:
         try:
-            response = requests.get("http://www.google.com", proxies={"http": proxy, "https": proxy}, timeout=5)
+            response = requests.get("https://youtube.com", proxies={"http": proxy, "https": proxy}, timeout=5)
             if response.status_code == 200:
                 working_proxies.append(proxy)
             else:
@@ -351,8 +351,8 @@ async def check_proxies(file_path, msg, max_proxies=None):
         except:
             bad_proxies.append(proxy)
 
-    working_file = "maut ✅.txt"
-    bad_file = "maut ❌.txt"
+    working_file = "maut working.txt"
+    bad_file = "maut bad.txt"
 
     with open(working_file, "w") as f:
         f.write("\n".join(working_proxies))
