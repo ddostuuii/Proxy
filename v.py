@@ -170,7 +170,7 @@ async def broadcast(message: types.Message):
     
     
     
-    @dp.message(Command("warnings"))
+@dp.message(Command("warnings"))
 async def view_warnings(message: types.Message):
     if message.from_user.id not in ADMINS:
         return await message.reply("🚫 You are not an admin!")
@@ -186,6 +186,7 @@ async def view_warnings(message: types.Message):
         await message.reply(f"🚨 **Warnings for {user_id}:**\n\n{warnings_list}")
     except:
         await message.reply("⚠ Usage: /warnings <user_id>")
+
 
     
     
