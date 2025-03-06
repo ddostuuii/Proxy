@@ -2,39 +2,29 @@ import os
 import requests
 import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
 # 🔹 टेलीग्राम बॉट टोकन और चैनल लिंक
 BOT_TOKEN = "7612290520:AAHUwfiZdxhmZ-JhNqM6cDdXV9QCWkSm9fA"  # अपना बॉट टोकन डालें
-CHANNEL_LINK = "https://t.me/+R4ram7JA-yY4MWQ1"  # चैनल इन्वाइट लिंक
+CHANNEL_ID = -1002363906868  # अपने चैनल का ID डालें
+CHANNEL_LINK = "https://t.me/seedhe_maut"  # चैनल का इन्वाइट लिंक
 
-# 🔹 नया तरीका Aiogram v3.7+ के लिए
+# 🔹 बॉट सेटअप
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
 
-# 🔹 बॉट खुद पता लगाएगा कि वह किस चैनल में एडमिन है
-async def get_admin_channel():
-    try:
-        admins = await bot.get_chat_administrators(CHANNEL_LINK)
-        return admins[0].chat.id if admins else None
-    except Exception:
-        return None
-
-# 🔹 चैनल जॉइन चेक करने का फ़ंक्शन
+# 🔹 यूजर चैनल में जॉइन है या नहीं
 async def is_user_member(user_id):
-    channel_id = await get_admin_channel()
-    if not channel_id:
-        return True  # अगर बॉट चैनल नहीं ढूंढ पाया, तो चेक स्किप करो
     try:
-        member = await bot.get_chat_member(channel_id, user_id)
+        member = await bot.get_chat_member(CHANNEL_ID, user_id)
         return member.status in ["member", "administrator", "creator"]
     except Exception:
         return False
 
-# 🔹 /start कमांड हैंडलर (चेक करेगा कि यूजर चैनल में है या नहीं)
+# 🔹 /start कमांड (चैनल जॉइन चेक + /maut बटन दिखाए)
 @dp.message(Command("start"))
 async def start(message: types.Message):
     user_id = message.from_user.id
@@ -48,27 +38,30 @@ async def start(message: types.Message):
         await message.reply("⚠ **To use this bot, please join our channel first!**", reply_markup=keyboard)
         return
 
-    # 🔹 अगर यूजर पहले से जॉइन है
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="👨‍💻 Developer", url="https://t.me/seedhe_maut_bot")]
-        ]
+    # 🔹 अगर यूजर जॉइन कर चुका है, तो `/maut` बटन वाला कीबोर्ड दिखाएं
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="/maut")]],
+        resize_keyboard=True
     )
-    await message.reply("👋 Hello! Send me any **text file** (📄 `.txt`, `.csv`, `.log`, `.json`, etc.), and I will check proxies.", reply_markup=keyboard)
+    await message.reply("✅ You are verified! Click `/maut` to check proxies.", reply_markup=keyboard)
 
-# 🔹 "I've Joined" बटन हैंडलर (यूजर ने चैनल जॉइन किया या नहीं)
+# 🔹 "I've Joined" बटन हैंडलर
 @dp.callback_query(lambda call: call.data == "check_join")
 async def check_join(call: types.CallbackQuery):
     user_id = call.from_user.id
     if await is_user_member(user_id):
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="👨‍💻 Developer", url="https://t.me/seedhe_maut_bot")]
-            ]
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="/maut")]],
+            resize_keyboard=True
         )
-        await call.message.edit_text("✅ Thank you for joining! Now send me a **text file** with proxies.", reply_markup=keyboard)
+        await call.message.edit_text("✅ Thank you for joining! Now click `/maut` to check proxies.", reply_markup=keyboard)
     else:
         await call.answer("❌ You haven't joined the channel yet!", show_alert=True)
+
+# 🔹 /maut कमांड (प्रॉक्सी चेकिंग स्टार्ट करने के लिए मैसेज भेजेगा)
+@dp.message(Command("maut"))
+async def maut(message: types.Message):
+    await message.reply("👋 Hello! Send me any **text file** (📄 `.txt`, `.csv`, `.log`, `.json`, etc.), and I will check proxies.")
 
 # 🔹 प्रॉक्सी चेक करने का फ़ंक्शन
 async def check_proxies(file_path, message):
@@ -176,7 +169,7 @@ async def handle_document(message: types.Message):
     os.remove(working_file)
     os.remove(bad_file)
 
-# 🔹 बॉट स्टार्ट करने का नया तरीका (Aiogram v3.7+)
+# 🔹 बॉट स्टार्ट करने का नया तरीका
 async def main():
     await dp.start_polling(bot)
 
