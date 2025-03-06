@@ -103,6 +103,35 @@ async def check_join(message: types.Message):
         await message.reply("✅ Thank you for joining! Now send me a file to check proxies.", reply_markup=types.ReplyKeyboardRemove())
     else:
         await message.reply("❌ You haven't joined the channel yet!", reply_markup=sendKeyboard)
+# 🔹 टोटल यूजर्स गिनने का कमांड
+@dp.message(Command("total_users"))
+async def total_users(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    total = len(users_data["users"])
+    await message.reply(f"👥 **Total Users:** {total}")
+
+# 🔹 ब्रॉडकास्ट मैसेज भेजने का कमांड
+@dp.message(Command("broadcast"))
+async def broadcast(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    text = message.text.replace("/broadcast", "").strip()
+    if not text:
+        return await message.reply("⚠ Please provide a message to broadcast!")
+
+    sent, failed = 0, 0
+    for user_id in users_data["users"]:
+        try:
+            await bot.send_message(user_id, text)
+            sent += 1
+        except:
+            failed += 1
+
+    await message.reply(f"📢 **Broadcast Sent!**\n✅ Delivered: {sent}\n❌ Failed: {failed}")
+
 
 # 🔹 जब यूज़र कोई फ़ाइल भेजे
 @dp.message(lambda message: message.document)
