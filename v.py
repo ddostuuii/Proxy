@@ -260,39 +260,39 @@ async def unban_user(message: types.Message):
 @dp.message(Command("help"))
 async def help_command(message: types.Message):
     commands_text = """
-🤖 **Bot Commands**:
+🤖 *Bot Commands*:
 
-**🔹 General Commands:**
-/start - Start the bot
-/help - Show all available commands
-/total_users - View total users
+🔹 *General Commands:*
+`/start` - Start the bot
+`/help` - Show all available commands
+`/total_users` - View total users
 
-**👑 Admin Commands:**
-/add_admin <user_id> - Add a new admin
-/remove_admin <user_id> - Remove an admin
-/list_admins - View all admins
-/approve <user_id> - Grant unlimited access to a user
-/disapprove <user_id> - Reset user to normal limit
-/block <user_id> - Block a user
-/unblock <user_id> - Unblock a user
-/ban <user_id> - Permanently ban a user
-/unban <user_id> - Remove a user's ban
-/set_limit <user_id> <limit> - Set proxy checking limit for a user
-/warn <user_id> <reason> - Warn a user
-/warnings <user_id> - View a user's warnings
-/active_users - View active users
-/broadcast <message> - Send a message to all users
-/restart_bot - Restart the bot
+👑 *Admin Commands:*
+`/add_admin <user_id>` - Add a new admin
+`/remove_admin <user_id>` - Remove an admin
+`/list_admins` - View all admins
+`/approve <user_id>` - Grant unlimited access to a user
+`/disapprove <user_id>` - Reset user to normal limit
+`/block <user_id>` - Block a user
+`/unblock <user_id>` - Unblock a user
+`/ban <user_id>` - Permanently ban a user
+`/unban <user_id>` - Remove a user's ban
+`/set_limit <user_id> <limit>` - Set proxy checking limit for a user
+`/warn <user_id> <reason>` - Warn a user
+`/warnings <user_id>` - View a user's warnings
+`/active_users` - View active users
+`/broadcast <message>` - Send a message to all users
+`/restart_bot` - Restart the bot
 
-**🛠 Proxy Checking Commands:**
-/check_proxies - Check proxies
-/upload_valid - Upload valid proxy file
-/upload_invalid - Upload invalid proxy file
+🛠 *Proxy Checking Commands:*
+`/check_proxies` - Check proxies
+`/upload_valid` - Upload valid proxy file
+`/upload_invalid` - Upload invalid proxy file
 
-ℹ️ **For any bot-related questions, contact an admin.**
+ℹ️ *For any bot-related questions, contact an admin.*
     """
     
-    await message.reply(commands_text, parse_mode="Markdown")
+    await message.reply(commands_text, parse_mode="MarkdownV2")
 
 @dp.message(Command("total_users"))
 async def total_users(message: types.Message):
