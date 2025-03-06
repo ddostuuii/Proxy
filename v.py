@@ -148,6 +148,9 @@ async def check_join(message: types.Message):
         await message.reply("❌ You haven't joined the channel yet!", reply_markup=sendKeyboard)
         
         #brodcast
+user_warnings = {}  # वॉर्निंग स्टोर करने के लिए
+user_limits = {}  # यूज़र्स की लिमिट स्टोर करने के लिए
+
 @dp.message(Command("broadcast"))
 async def broadcast(message: types.Message):
     if message.from_user.id not in ADMINS:
@@ -162,14 +165,11 @@ async def broadcast(message: types.Message):
         try:
             await bot.send_message(user_id, f"📢 **Broadcast:**\n\n{text}")
             count += 1
-        except:
-            pass
+        except Exception as e:
+            print(f"Error sending message to {user_id}: {e}")
 
     await message.reply(f"✅ Broadcast sent to {count} users!")
-    
-    
-    
-    
+
 @dp.message(Command("warnings"))
 async def view_warnings(message: types.Message):
     if message.from_user.id not in ADMINS:
@@ -184,14 +184,9 @@ async def view_warnings(message: types.Message):
 
         warnings_list = "\n".join([f"⚠ {w}" for w in warnings])
         await message.reply(f"🚨 **Warnings for {user_id}:**\n\n{warnings_list}")
-    except:
+    except Exception as e:
+        print(f"Error: {e}")
         await message.reply("⚠ Usage: /warnings <user_id>")
-
-
-    
-    
-    
-    user_warnings = {}
 
 @dp.message(Command("warn"))
 async def warn_user(message: types.Message):
@@ -208,13 +203,9 @@ async def warn_user(message: types.Message):
 
         await message.reply(f"⚠ **User {user_id} warned for:** {reason}")
         await bot.send_message(user_id, f"⚠ **Warning:** {reason}")
-    except:
+    except Exception as e:
+        print(f"Error: {e}")
         await message.reply("⚠ Usage: /warn <user_id> <reason>")
-
-    
-    
-    
-    user_limits = {}  # यूज़र्स की लिमिट स्टोर करने के लिए
 
 @dp.message(Command("set_limit"))
 async def set_limit(message: types.Message):
@@ -226,12 +217,9 @@ async def set_limit(message: types.Message):
         user_id, limit = int(user_id), int(limit)
         user_limits[user_id] = limit
         await message.reply(f"✅ User {user_id} की प्रॉक्सी लिमिट {limit} सेट कर दी गई!")
-    except:
+    except Exception as e:
+        print(f"Error: {e}")
         await message.reply("⚠ Usage: /set_limit <user_id> <limit>")
-
-
-
-
 
 @dp.message(Command("ban"))
 async def ban_user(message: types.Message):
@@ -247,10 +235,9 @@ async def ban_user(message: types.Message):
 
         save_users(users_data)
         await message.reply(f"🚨 User {user_id} has been permanently banned!")
-    except:
+    except Exception as e:
+        print(f"Error: {e}")
         await message.reply("⚠ Usage: /ban <user_id>")
-
-
 
 @dp.message(Command("unban"))
 async def unban_user(message: types.Message):
@@ -266,54 +253,9 @@ async def unban_user(message: types.Message):
 
         save_users(users_data)
         await message.reply(f"✅ User {user_id} has been unbanned!")
-    except:
+    except Exception as e:
+        print(f"Error: {e}")
         await message.reply("⚠ Usage: /unban <user_id>")
-
-@dp.message(Command("add_admin"))
-async def add_admin(message: types.Message):
-    if message.from_user.id not in ADMINS:
-        return await message.reply("🚫 You are not an admin!")
-
-    try:
-        user_id = int(message.text.split()[1])
-        if user_id not in ADMINS:
-            ADMINS.append(user_id)
-            await message.reply(f"✅ User {user_id} is now an admin!")
-        else:
-            await message.reply("⚠ This user is already an admin.")
-    except:
-        await message.reply("⚠ Usage: /add_admin <user_id>")
-
-
-    
-@dp.message(Command("remove_admin"))
-async def remove_admin(message: types.Message):
-    if message.from_user.id not in ADMINS:
-        return await message.reply("🚫 You are not an admin!")
-
-    try:
-        user_id = int(message.text.split()[1])
-        if user_id in ADMINS:
-            ADMINS.remove(user_id)
-            await message.reply(f"❌ User {user_id} has been removed from admins!")
-        else:
-            await message.reply("⚠ This user is not an admin.")
-    except:
-        await message.reply("⚠ Usage: /remove_admin <user_id>")
-
-
-@dp.message(Command("list_admins"))
-async def list_admins(message: types.Message):
-    if message.from_user.id not in ADMINS:
-        return await message.reply("🚫 You are not an admin!")
-
-    admins_list = "\n".join([f"👑 {admin_id}" for admin_id in ADMINS])
-    await message.reply(f"👑 **Admins:**\n\n{admins_list}")
-
-
-
-
-
 
 @dp.message(Command("help"))
 async def help_command(message: types.Message):
@@ -350,9 +292,8 @@ async def help_command(message: types.Message):
 ℹ️ **For any bot-related questions, contact an admin.**
     """
     
-    await message.reply(commands_text, parse_mode=ParseMode.MARKDOWN)
+    await message.reply(commands_text, parse_mode="Markdown")
 
-# 🔹 /total_users कमांड (सिर्फ एडमिन के लिए)
 @dp.message(Command("total_users"))
 async def total_users(message: types.Message):
     if message.from_user.id not in ADMINS:
@@ -361,7 +302,6 @@ async def total_users(message: types.Message):
     total = len(users_data["users"])
     await message.reply(f"👥 **Total Users:** {total}")
 
-# 🔹 /approve और /disapprove कमांड
 @dp.message(Command("approve"))
 async def approve(message: types.Message):
     if message.from_user.id not in ADMINS:
@@ -371,7 +311,8 @@ async def approve(message: types.Message):
         user_id = int(message.text.split()[1])
         approve_user(user_id)
         await message.reply(f"✅ User {user_id} approved for unlimited access!")
-    except:
+    except Exception as e:
+        print(f"Error: {e}")
         await message.reply("⚠ Usage: /approve <user_id>")
 
 @dp.message(Command("disapprove"))
@@ -383,8 +324,10 @@ async def disapprove(message: types.Message):
         user_id = int(message.text.split()[1])
         disapprove_user(user_id)
         await message.reply(f"🚫 User {user_id} reverted to normal limit!")
-    except:
+    except Exception as e:
+        print(f"Error: {e}")
         await message.reply("⚠ Usage: /disapprove <user_id>")
+
 
 # 🔹 प्रॉक्सी चेकिंग फंक्शन
 async def check_proxies(file_path, msg, max_proxies=None):
