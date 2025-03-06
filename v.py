@@ -58,6 +58,47 @@ def unblock_user(user_id):
     if user_id in users_data["blocked"]:
         users_data["blocked"].remove(user_id)
         save_users(users_data)
+       #usser info
+@dp.message(Command("user_info"))
+async def user_info(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    try:
+        user_id = int(message.text.split()[1])
+        status = "Normal User"
+        if user_id in users_data["blocked"]:
+            status = "🚫 Blocked User"
+        elif user_id in users_data["approved"]:
+            status = "✅ Approved User"
+        await message.reply(f"👤 **User ID:** {user_id}\n📌 **Status:** {status}")
+    except:
+        await message.reply("⚠ Usage: /user_info <user_id>")
+        #bot status
+        @dp.message(Command("bot_stats"))
+async def bot_stats(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    total_users = len(users_data["users"])
+    blocked_users = len(users_data["blocked"])
+    approved_users = len(users_data["approved"])
+    
+    ram_usage = psutil.virtual_memory().percent
+    cpu_usage = psutil.cpu_percent(interval=1)
+
+    stats_text = f"""
+📊 **Bot Statistics**
+👥 **Total Users:** {total_users}
+🚫 **Blocked Users:** {blocked_users}
+✅ **Approved Users:** {approved_users}
+
+🖥 **System Stats**
+🔹 **RAM Usage:** {ram_usage}%
+🔹 **CPU Usage:** {cpu_usage}%
+"""
+    await message.reply(stats_text)
+
 
 # 🔹 यूजर अप्रूवल फंक्शन
 def approve_user(user_id):
@@ -105,6 +146,209 @@ async def check_join(message: types.Message):
         await message.reply("✅ Thank you for joining! Now send me a file to check proxies.", reply_markup=types.ReplyKeyboardRemove())
     else:
         await message.reply("❌ You haven't joined the channel yet!", reply_markup=sendKeyboard)
+        
+        #brodcast
+@dp.message(Command("broadcast"))
+async def broadcast(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    text = message.text.replace("/broadcast", "").strip()
+    if not text:
+        return await message.reply("⚠ Usage: /broadcast <message>")
+
+    count = 0
+    for user_id in users_data["users"]:
+        try:
+            await bot.send_message(user_id, f"📢 **Broadcast:**\n\n{text}")
+            count += 1
+        except:
+            pass
+
+    await message.reply(f"✅ Broadcast sent to {count} users!")
+    
+    
+    
+    
+    @dp.message(Command("warnings"))
+async def view_warnings(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    try:
+        user_id = int(message.text.split()[1])
+        warnings = user_warnings.get(user_id, [])
+
+        if not warnings:
+            return await message.reply(f"✅ User {user_id} has no warnings.")
+
+        warnings_list = "\n".join([f"⚠ {w}" for w in warnings])
+        await message.reply(f"🚨 **Warnings for {user_id}:**\n\n{warnings_list}")
+    except:
+        await message.reply("⚠ Usage: /warnings <user_id>")
+
+    
+    
+    
+    user_warnings = {}
+
+@dp.message(Command("warn"))
+async def warn_user(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    try:
+        _, user_id, reason = message.text.split(maxsplit=2)
+        user_id = int(user_id)
+
+        if user_id not in user_warnings:
+            user_warnings[user_id] = []
+        user_warnings[user_id].append(reason)
+
+        await message.reply(f"⚠ **User {user_id} warned for:** {reason}")
+        await bot.send_message(user_id, f"⚠ **Warning:** {reason}")
+    except:
+        await message.reply("⚠ Usage: /warn <user_id> <reason>")
+
+    
+    
+    
+    user_limits = {}  # यूज़र्स की लिमिट स्टोर करने के लिए
+
+@dp.message(Command("set_limit"))
+async def set_limit(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    try:
+        _, user_id, limit = message.text.split()
+        user_id, limit = int(user_id), int(limit)
+        user_limits[user_id] = limit
+        await message.reply(f"✅ User {user_id} की प्रॉक्सी लिमिट {limit} सेट कर दी गई!")
+    except:
+        await message.reply("⚠ Usage: /set_limit <user_id> <limit>")
+
+
+
+
+
+@dp.message(Command("ban"))
+async def ban_user(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    try:
+        user_id = int(message.text.split()[1])
+        if user_id in users_data["users"]:
+            users_data["users"].remove(user_id)
+        if user_id not in users_data["blocked"]:
+            users_data["blocked"].append(user_id)
+
+        save_users(users_data)
+        await message.reply(f"🚨 User {user_id} has been permanently banned!")
+    except:
+        await message.reply("⚠ Usage: /ban <user_id>")
+
+
+
+@dp.message(Command("unban"))
+async def unban_user(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    try:
+        user_id = int(message.text.split()[1])
+        if user_id in users_data["blocked"]:
+            users_data["blocked"].remove(user_id)
+        if user_id not in users_data["users"]:
+            users_data["users"].append(user_id)
+
+        save_users(users_data)
+        await message.reply(f"✅ User {user_id} has been unbanned!")
+    except:
+        await message.reply("⚠ Usage: /unban <user_id>")
+
+    @dp.message(Command("add_admin"))
+async def add_admin(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    try:
+        user_id = int(message.text.split()[1])
+        if user_id not in ADMINS:
+            ADMINS.append(user_id)
+            await message.reply(f"✅ User {user_id} is now an admin!")
+        else:
+            await message.reply("⚠ This user is already an admin.")
+    except:
+        await message.reply("⚠ Usage: /add_admin <user_id>")
+
+    
+    @dp.message(Command("remove_admin"))
+async def remove_admin(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    try:
+        user_id = int(message.text.split()[1])
+        if user_id in ADMINS:
+            ADMINS.remove(user_id)
+            await message.reply(f"❌ User {user_id} has been removed from admins!")
+        else:
+            await message.reply("⚠ This user is not an admin.")
+    except:
+        await message.reply("⚠ Usage: /remove_admin <user_id>")
+
+
+@dp.message(Command("list_admins"))
+async def list_admins(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    admins_list = "\n".join([f"👑 {admin_id}" for admin_id in ADMINS])
+    await message.reply(f"👑 **Admins:**\n\n{admins_list}")
+
+
+
+
+
+
+@dp.message(Command("help"))
+async def help_command(message: types.Message):
+    commands_text = """
+🤖 **Bot Commands**:
+
+**🔹 General Commands:**
+/start - Start the bot
+/help - Show all available commands
+/total_users - View total users
+
+**👑 Admin Commands:**
+/add_admin <user_id> - Add a new admin
+/remove_admin <user_id> - Remove an admin
+/list_admins - View all admins
+/approve <user_id> - Grant unlimited access to a user
+/disapprove <user_id> - Reset user to normal limit
+/block <user_id> - Block a user
+/unblock <user_id> - Unblock a user
+/ban <user_id> - Permanently ban a user
+/unban <user_id> - Remove a user's ban
+/set_limit <user_id> <limit> - Set proxy checking limit for a user
+/warn <user_id> <reason> - Warn a user
+/warnings <user_id> - View a user's warnings
+/active_users - View active users
+/broadcast <message> - Send a message to all users
+/restart_bot - Restart the bot
+
+**🛠 Proxy Checking Commands:**
+/check_proxies - Check proxies
+/upload_valid - Upload valid proxy file
+/upload_invalid - Upload invalid proxy file
+
+ℹ️ **For any bot-related questions, contact an admin.**
+    """
+    
+    await message.reply(commands_text, parse_mode=ParseMode.MARKDOWN)
 
 # 🔹 /total_users कमांड (सिर्फ एडमिन के लिए)
 @dp.message(Command("total_users"))
