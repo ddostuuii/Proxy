@@ -21,9 +21,24 @@ USERS_DB = "users.json"
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
 
-# 🔹 Reply Keyboard
-sendKeyboard = ReplyKeyboardMarkup(
+# 🔹 नॉर्मल यूजर के लिए कीबोर्ड
+normal_user_keyboard = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="✅ I've Joined")]],
+    resize_keyboard=True
+)
+
+# 🔹 एडमिन के लिए कीबोर्ड (सभी कमांड्स)
+admin_keyboard = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="/total_users"), KeyboardButton(text="/active_users")],
+        [KeyboardButton(text="/admin_list"), KeyboardButton(text="/broadcast")],
+        [KeyboardButton(text="/approve"), KeyboardButton(text="/disapprove")],
+        [KeyboardButton(text="/approved_users"), KeyboardButton(text="/server_status")],
+        [KeyboardButton(text="/reset_user"), KeyboardButton(text="/user_info")],
+        [KeyboardButton(text="/add_admin"), KeyboardButton(text="/remove_admin")],
+        [KeyboardButton(text="/block_user"), KeyboardButton(text="/unblock_user")],
+        [KeyboardButton(text="/blocked_users"), KeyboardButton(text="/unapproved_users")]
+    ],
     resize_keyboard=True
 )
 
@@ -44,28 +59,6 @@ users_data = load_users()
 def add_user(user_id):
     if user_id not in users_data["users"]:
         users_data["users"].append(user_id)
-        save_users(users_data)
-
-# 🔹 ब्लॉक/अनब्लॉक फंक्शन
-def block_user(user_id):
-    if user_id not in users_data["blocked"]:
-        users_data["blocked"].append(user_id)
-        save_users(users_data)
-
-def unblock_user(user_id):
-    if user_id in users_data["blocked"]:
-        users_data["blocked"].remove(user_id)
-        save_users(users_data)
-
-# 🔹 यूजर अप्रूवल फंक्शन
-def approve_user(user_id):
-    if user_id not in users_data["approved"]:
-        users_data["approved"].append(user_id)
-        save_users(users_data)
-
-def disapprove_user(user_id):
-    if user_id in users_data["approved"]:
-        users_data["approved"].remove(user_id)
         save_users(users_data)
 
 # 🔹 चैनल जॉइन स्टेटस चेक करें
@@ -90,19 +83,13 @@ async def start(message: types.Message):
     if not await is_user_member(user_id):
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)]])
         await message.reply("⚠ **Join our channel to use this bot!**", reply_markup=keyboard)
-        await message.reply("🔹 Click below after joining:", reply_markup=sendKeyboard)
+        await message.reply("🔹 Click below after joining:", reply_markup=normal_user_keyboard)
     else:
-        await message.reply("✅ You are verified! Now send me a file to check proxies.")
+        if user_id in ADMINS:
+            await message.reply("👑 **Welcome, Admin!** Use the commands below:", reply_markup=admin_keyboard)
+        else:
+            await message.reply("✅ You are verified! Now send me a file to check proxies.", reply_markup=normal_user_keyboard)
 
-# 🔹 "✅ I've Joined" बटन हैंडलर
-@dp.message(lambda message: message.text == "✅ I've Joined")
-async def check_join(message: types.Message):
-    user_id = message.from_user.id
-
-    if await is_user_member(user_id):
-        await message.reply("✅ Thank you for joining! Now send me a file to check proxies.", reply_markup=types.ReplyKeyboardRemove())
-    else:
-        await message.reply("❌ You haven't joined the channel yet!", reply_markup=sendKeyboard)
 # 🔹 टोटल यूजर्स गिनने का कमांड
 @dp.message(Command("total_users"))
 async def total_users(message: types.Message):
@@ -111,6 +98,15 @@ async def total_users(message: types.Message):
 
     total = len(users_data["users"])
     await message.reply(f"👥 **Total Users:** {total}")
+
+# 🔹 एडमिन लिस्ट देखें
+@dp.message(Command("admin_list"))
+async def admin_list(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    admin_list = "\n".join(map(str, ADMINS)) or "No admins found."
+    await message.reply(f"👑 **Admin List:**\n{admin_list}")
 
 # 🔹 ब्रॉडकास्ट मैसेज भेजने का कमांड
 @dp.message(Command("broadcast"))
@@ -132,52 +128,6 @@ async def broadcast(message: types.Message):
 
     await message.reply(f"📢 **Broadcast Sent!**\n✅ Delivered: {sent}\n❌ Failed: {failed}")
 
-
-# 🔹 जब यूज़र कोई फ़ाइल भेजे
-@dp.message(lambda message: message.document)
-async def handle_document(message: types.Message):
-    user_id = message.from_user.id
-
-    if user_id in users_data["blocked"]:
-        await message.reply("🚫 You are blocked from using this bot.")
-        return
-
-    if not await is_user_member(user_id):
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)]])
-        await message.reply("⚠ **Join our channel first!**", reply_markup=keyboard)
-        await message.reply("🔹 Click below after joining:", reply_markup=sendKeyboard)
-        return
-
-    file_id = message.document.file_id
-    file_name = message.document.file_name
-
-    allowed_formats = [".txt", ".csv", ".log", ".json"]
-    if not any(file_name.endswith(ext) for ext in allowed_formats):
-        await message.reply("⚠ Please send a valid text file (`.txt`, `.csv`, `.log`, `.json`).")
-        return
-
-    file_path = f"downloads/{file_name}"
-    os.makedirs("downloads", exist_ok=True)
-    file_info = await bot.get_file(file_id)
-    await bot.download_file(file_info.file_path, file_path)
-
-    msg = await message.reply("🔍 Checking proxies... Please wait.")
-
-    # 🔹 अप्रूव और नॉर्मल यूजर लिमिट
-    max_proxies = None if (user_id in ADMINS or user_id in users_data["approved"]) else 200
-    working_file, bad_file, working_count, bad_count = await check_proxies(file_path, msg, max_proxies)
-
-    await msg.edit_text(f"✅ Proxy checking completed!\n\n✅ **Working:** {working_count}\n❌ **Not Working:** {bad_count}")
-
-    with open(working_file, "rb") as file:
-        await message.reply_document(BufferedInputFile(file.read(), working_file))
-    with open(bad_file, "rb") as file:
-        await message.reply_document(BufferedInputFile(file.read(), bad_file))
-
-    os.remove(file_path)
-    os.remove(working_file)
-    os.remove(bad_file)
-
 # 🔹 एडमिन कमांड्स
 @dp.message(Command("approve"))
 async def approve(message: types.Message):
@@ -185,25 +135,42 @@ async def approve(message: types.Message):
         return await message.reply("🚫 You are not an admin!")
 
     user_id = int(message.text.split()[1])
-    approve_user(user_id)
+    users_data["approved"].append(user_id)
+    save_users(users_data)
     await message.reply(f"✅ User {user_id} approved for unlimited access!")
 
-@dp.message(Command("disapprove"))
-async def disapprove(message: types.Message):
+@dp.message(Command("block_user"))
+async def block_user(message: types.Message):
     if message.from_user.id not in ADMINS:
         return await message.reply("🚫 You are not an admin!")
 
     user_id = int(message.text.split()[1])
-    disapprove_user(user_id)
-    await message.reply(f"🚫 User {user_id} reverted to normal limit!")
+    users_data["blocked"].append(user_id)
+    save_users(users_data)
+    await message.reply(f"🚫 User {user_id} has been blocked!")
 
-@dp.message(Command("approved_users"))
-async def approved_users(message: types.Message):
+@dp.message(Command("unblock_user"))
+async def unblock_user(message: types.Message):
     if message.from_user.id not in ADMINS:
         return await message.reply("🚫 You are not an admin!")
 
-    approved_list = "\n".join(map(str, users_data["approved"])) or "No approved users."
-    await message.reply(f"✅ **Approved Users:**\n{approved_list}")
+    user_id = int(message.text.split()[1])
+    users_data["blocked"].remove(user_id)
+    save_users(users_data)
+    await message.reply(f"✅ User {user_id} has been unblocked!")
+
+# 🔹 सर्वर स्टेटस चेक करें
+@dp.message(Command("server_status"))
+async def server_status(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
+
+    import psutil, time
+    uptime = time.time() - psutil.boot_time()
+    cpu_usage = psutil.cpu_percent()
+    memory_usage = psutil.virtual_memory().percent
+
+    await message.reply(f"🖥 **Server Status:**\n🔹 Uptime: {uptime:.2f} sec\n🔹 CPU Usage: {cpu_usage}%\n🔹 RAM Usage: {memory_usage}%")
 
 # 🔹 बॉट स्टार्ट करें
 async def main():
