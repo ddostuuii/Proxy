@@ -328,7 +328,7 @@ async def disapprove(message: types.Message):
     except Exception as e:
         print(f"Error: {e}")
         await message.reply("⚠ Usage: /disapprove <user_id>")
-        # 🔹 प्रॉक्सी फ़ाइल हैंडलर
+# 🔹 प्रॉक्सी फ़ाइल हैंडलर (अपडेटेड)
 @dp.message(lambda message: message.document)
 async def handle_proxy_file(message: types.Message):
     user_id = message.from_user.id
@@ -340,7 +340,7 @@ async def handle_proxy_file(message: types.Message):
     max_proxies = None
     if user_id not in users_data["approved"]:
         max_proxies = 200  # नॉर्मल यूज़र्स के लिए लिमिट
-    
+
     # 🔹 फ़ाइल डाउनलोड करें
     file_id = message.document.file_id
     file_info = await bot.get_file(file_id)
@@ -348,8 +348,21 @@ async def handle_proxy_file(message: types.Message):
     file_name = "uploaded_proxies.txt"
 
     await bot.download_file(file_path, file_name)
-    
+
     await message.reply("⏳ Checking proxies, please wait...")
+
+    # 🔹 प्रॉक्सी चेक करें
+    working_file, bad_file, good_count, bad_count = await check_proxies(file_name, message, max_proxies)
+
+    # 🔹 यूज़र को रिज़ल्ट भेजें
+    await message.reply(f"✅ **Proxy Check Completed!**\n\n🔹 Working: {good_count}\n🔹 Bad: {bad_count}")
+
+    # 🔹 सिर्फ उन्हीं फ़ाइलों को भेजें जिनमें डेटा हो
+    if good_count > 0:
+        await message.reply_document(BufferedInputFile(open(working_file, "rb").read(), filename="maut ✅.txt"))
+    if bad_count > 0:
+        await message.reply_document(BufferedInputFile(open(bad_file, "rb").read(), filename="maut ❌.txt"))
+
 
     # 🔹 प्रॉक्सी चेक करें
     working_file, bad_file, good_count, bad_count = await check_proxies(file_name, message, max_proxies)
@@ -362,9 +375,8 @@ async def handle_proxy_file(message: types.Message):
     await message.reply_document(BufferedInputFile(open(bad_file, "rb").read(), filename="maut ❌.txt"))
 
 
-
-# 🔹 प्रॉक्सी चेकिंग फंक्शन
-async def check_proxies(file_path, msg, max_proxies=None):
+# 🔹 प्रॉक्सी चेकिंग फंक्शन (अपडेटेड)
+async def check_proxies(file_path, message, max_proxies=None):
     with open(file_path, "r") as f:
         proxies = f.read().splitlines()
 
@@ -373,10 +385,13 @@ async def check_proxies(file_path, msg, max_proxies=None):
 
     working_proxies = []
     bad_proxies = []
+    total = len(proxies)
 
-    for proxy in proxies:
+    progress_msg = await message.reply(f"🔄 Checking {total} proxies... Please wait.")
+
+    for index, proxy in enumerate(proxies, start=1):
         try:
-            response = requests.get("https://youtube.com", proxies={"http": proxy, "https": proxy}, timeout=5)
+            response = requests.get("https://www.google.com", proxies={"http": proxy, "https": proxy}, timeout=5)
             if response.status_code == 200:
                 working_proxies.append(proxy)
             else:
@@ -384,15 +399,20 @@ async def check_proxies(file_path, msg, max_proxies=None):
         except:
             bad_proxies.append(proxy)
 
-    working_file = "maut working.txt"
-    bad_file = "maut bad.txt"
+        # 🔹 हर 10 प्रॉक्सी के बाद अपडेट मैसेज भेजें
+        if index % 10 == 0 or index == total:
+            await progress_msg.edit_text(f"✅ Checked: {index}/{total}\n✔️ Working: {len(working_proxies)}\n❌ Bad: {len(bad_proxies)}")
+
+    working_file = "maut ✅.txt"
+    bad_file = "maut ❌.txt"
 
     with open(working_file, "w") as f:
-        f.write("\n".join(working_proxies))
+        f.write("\n".join(working_proxies) if working_proxies else "No working proxies found.")
     with open(bad_file, "w") as f:
-        f.write("\n".join(bad_proxies))
+        f.write("\n".join(bad_proxies) if bad_proxies else "No bad proxies found.")
 
     return working_file, bad_file, len(working_proxies), len(bad_proxies)
+
 
 # 🔹 बॉट स्टार्ट करें
 async def main():
