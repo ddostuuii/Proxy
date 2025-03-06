@@ -286,7 +286,7 @@ async def add_admin(message: types.Message):
 
 
     
-    @dp.message(Command("remove_admin"))
+@dp.message(Command("remove_admin"))
 async def remove_admin(message: types.Message):
     if message.from_user.id not in ADMINS:
         return await message.reply("🚫 You are not an admin!")
