@@ -32,23 +32,12 @@ async def start(message: types.Message):
     if not await is_user_member(user_id):  # 🔸 हर बार चेक होगा
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)],
-                [InlineKeyboardButton(text="✅ I've Joined", callback_data="check_join")]
+                [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)]
             ]
         )
         await message.reply("⚠ **To use this bot, please join our channel first!**", reply_markup=keyboard)
     else:
         await message.reply("✅ You are verified! Now send me a file to check proxies.")
-
-# 🔹 "I've Joined" बटन हैंडलर
-@dp.callback_query(lambda call: call.data == "check_join")
-async def check_join(call: types.CallbackQuery):
-    user_id = call.from_user.id
-
-    if await is_user_member(user_id):
-        await call.message.edit_text("✅ Thank you for joining! Now send me a file to check proxies.")
-    else:
-        await call.answer("❌ You haven't joined the channel yet!", show_alert=True)
 
 # 🔹 जब यूज़र कोई फ़ाइल भेजे (हर बार चेक होगा)
 @dp.message(lambda message: message.document)
@@ -58,8 +47,7 @@ async def handle_document(message: types.Message):
     if not await is_user_member(user_id):  # 🔸 हर बार चेक होगा
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)],
-                [InlineKeyboardButton(text="✅ I've Joined", callback_data="check_join")]
+                [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)]
             ]
         )
         await message.reply("⚠ **You must join our channel first!**", reply_markup=keyboard)
@@ -162,4 +150,4 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main()) 
