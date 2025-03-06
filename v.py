@@ -2,7 +2,7 @@ import os
 import requests
 import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -15,6 +15,14 @@ CHANNEL_LINK = "https://t.me/seedhe_maut"  # चैनल का इन्वा
 # 🔹 बॉट सेटअप
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
+
+# 🔹 Reply Keyboard बनाएं
+sendKeyboard = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="✅ I've Joined")]
+    ],
+    resize_keyboard=True
+)
 
 # 🔹 यूजर चैनल में जॉइन है या नहीं (हर बार चेक होगा)
 async def is_user_member(user_id):
@@ -36,8 +44,19 @@ async def start(message: types.Message):
             ]
         )
         await message.reply("⚠ **To use this bot, please join our channel first!**", reply_markup=keyboard)
+        await message.reply("🔹 Click the button below after joining the channel:", reply_markup=sendKeyboard)
     else:
         await message.reply("✅ You are verified! Now send me a file to check proxies.")
+
+# 🔹 "✅ I've Joined" बटन हैंडलर (Reply Keyboard से)
+@dp.message(lambda message: message.text == "✅ I've Joined")
+async def check_join(message: types.Message):
+    user_id = message.from_user.id
+
+    if await is_user_member(user_id):
+        await message.reply("✅ Thank you for joining! Now send me a file to check proxies.", reply_markup=types.ReplyKeyboardRemove())
+    else:
+        await message.reply("❌ You haven't joined the channel yet!", reply_markup=sendKeyboard)
 
 # 🔹 जब यूज़र कोई फ़ाइल भेजे (हर बार चेक होगा)
 @dp.message(lambda message: message.document)
@@ -51,6 +70,7 @@ async def handle_document(message: types.Message):
             ]
         )
         await message.reply("⚠ **You must join our channel first!**", reply_markup=keyboard)
+        await message.reply("🔹 Click the button below after joining the channel:", reply_markup=sendKeyboard)
         return
 
     file_id = message.document.file_id
