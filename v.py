@@ -16,6 +16,9 @@ CHANNEL_LINK = "https://t.me/seedhe_maut"  # चैनल का इन्वा
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
 
+# 🔹 वेरिफाइड यूज़र्स की लिस्ट (RAM में स्टोर)
+verified_users = set()
+
 # 🔹 यूजर चैनल में जॉइन है या नहीं
 async def is_user_member(user_id):
     try:
@@ -24,10 +27,19 @@ async def is_user_member(user_id):
     except Exception:
         return False
 
-# 🔹 /start कमांड (चैनल जॉइन चेक + /maut बटन दिखाए)
+# 🔹 /start कमांड (चैनल जॉइन चेक + /maut बटन हाइड)
 @dp.message(Command("start"))
 async def start(message: types.Message):
     user_id = message.from_user.id
+
+    if user_id in verified_users:
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="/maut")]],
+            resize_keyboard=True
+        )
+        await message.reply("✅ You are already verified! Click `/maut` to check proxies.", reply_markup=keyboard)
+        return
+
     if not await is_user_member(user_id):
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
@@ -36,20 +48,21 @@ async def start(message: types.Message):
             ]
         )
         await message.reply("⚠ **To use this bot, please join our channel first!**", reply_markup=keyboard)
-        return
+    else:
+        verified_users.add(user_id)
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="/maut")]],
+            resize_keyboard=True
+        )
+        await message.reply("✅ You are verified! Click `/maut` to check proxies.", reply_markup=keyboard)
 
-    # 🔹 अगर यूजर जॉइन कर चुका है, तो `/maut` बटन वाला कीबोर्ड दिखाएं
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="/maut")]],
-        resize_keyboard=True
-    )
-    await message.reply("✅ You are verified! Click `/maut` to check proxies.", reply_markup=keyboard)
-
-# 🔹 "I've Joined" बटन हैंडलर
+# 🔹 "I've Joined" बटन हैंडलर (अब `/maut` दिखेगा)
 @dp.callback_query(lambda call: call.data == "check_join")
 async def check_join(call: types.CallbackQuery):
     user_id = call.from_user.id
+
     if await is_user_member(user_id):
+        verified_users.add(user_id)
         keyboard = ReplyKeyboardMarkup(
             keyboard=[[KeyboardButton(text="/maut")]],
             resize_keyboard=True
@@ -58,9 +71,21 @@ async def check_join(call: types.CallbackQuery):
     else:
         await call.answer("❌ You haven't joined the channel yet!", show_alert=True)
 
-# 🔹 /maut कमांड (प्रॉक्सी चेकिंग स्टार्ट करने के लिए मैसेज भेजेगा)
+# 🔹 `/maut` तभी चलेगा जब यूजर वेरिफाइड होगा
 @dp.message(Command("maut"))
 async def maut(message: types.Message):
+    user_id = message.from_user.id
+
+    if user_id not in verified_users:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)],
+                [InlineKeyboardButton(text="✅ I've Joined", callback_data="check_join")]
+            ]
+        )
+        await message.reply("⚠ **You must join our channel first!**", reply_markup=keyboard)
+        return
+
     await message.reply("👋 Hello! Send me any **text file** (📄 `.txt`, `.csv`, `.log`, `.json`, etc.), and I will check proxies.")
 
 # 🔹 प्रॉक्सी चेक करने का फ़ंक्शन
@@ -115,14 +140,15 @@ async def check_proxies(file_path, message):
 @dp.message(lambda message: message.document)
 async def handle_document(message: types.Message):
     user_id = message.from_user.id
-    if not await is_user_member(user_id):
+
+    if user_id not in verified_users:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)],
                 [InlineKeyboardButton(text="✅ I've Joined", callback_data="check_join")]
             ]
         )
-        await message.reply("⚠ **To use this bot, please join our channel first!**", reply_markup=keyboard)
+        await message.reply("⚠ **You must join our channel first!**", reply_markup=keyboard)
         return
 
     file_id = message.document.file_id
@@ -169,7 +195,7 @@ async def handle_document(message: types.Message):
     os.remove(working_file)
     os.remove(bad_file)
 
-# 🔹 बॉट स्टार्ट करने का नया तरीका
+# 🔹 बॉट स्टार्ट करने का तरीका
 async def main():
     await dp.start_polling(bot)
 
