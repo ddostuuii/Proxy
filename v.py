@@ -16,10 +16,7 @@ CHANNEL_LINK = "https://t.me/seedhe_maut"  # चैनल का इन्वा
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
 
-# 🔹 वेरिफाइड यूज़र्स की लिस्ट (RAM में स्टोर)
-verified_users = set()
-
-# 🔹 यूजर चैनल में जॉइन है या नहीं
+# 🔹 यूजर चैनल में जॉइन है या नहीं (हर बार चेक होगा)
 async def is_user_member(user_id):
     try:
         member = await bot.get_chat_member(CHANNEL_ID, user_id)
@@ -27,16 +24,12 @@ async def is_user_member(user_id):
     except Exception:
         return False
 
-# 🔹 /start कमांड (चैनल जॉइन चेक)
+# 🔹 /start कमांड
 @dp.message(Command("start"))
 async def start(message: types.Message):
     user_id = message.from_user.id
 
-    if user_id in verified_users:
-        await message.reply("✅ You are already verified! Send me a file to check proxies.")
-        return
-
-    if not await is_user_member(user_id):
+    if not await is_user_member(user_id):  # 🔸 हर बार चेक होगा
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)],
@@ -45,74 +38,24 @@ async def start(message: types.Message):
         )
         await message.reply("⚠ **To use this bot, please join our channel first!**", reply_markup=keyboard)
     else:
-        verified_users.add(user_id)
-        await message.reply("✅ You are verified! Send me a file to check proxies.")
+        await message.reply("✅ You are verified! Now send me a file to check proxies.")
 
-# 🔹 "I've Joined" बटन हैंडलर (अब बॉट का मेन फ़ंक्शन चलेगा)
+# 🔹 "I've Joined" बटन हैंडलर
 @dp.callback_query(lambda call: call.data == "check_join")
 async def check_join(call: types.CallbackQuery):
     user_id = call.from_user.id
 
     if await is_user_member(user_id):
-        verified_users.add(user_id)
         await call.message.edit_text("✅ Thank you for joining! Now send me a file to check proxies.")
     else:
         await call.answer("❌ You haven't joined the channel yet!", show_alert=True)
 
-# 🔹 प्रॉक्सी चेक करने का फ़ंक्शन
-async def check_proxies(file_path, message):
-    timeout = 5
-    working_proxies = []
-    bad_proxies = []
-
-    with open(file_path, "r", encoding="utf-8", errors="ignore") as file:
-        proxies = file.read().splitlines()
-
-    total_proxies = len(proxies)
-    checked_count = 0
-
-    for proxy in proxies:
-        proxy = proxy.strip()
-        if not proxy:
-            continue  
-
-        proxy_dict = {"http": f"http://{proxy}", "https": f"http://{proxy}"}
-
-        try:
-            response = requests.get("http://httpbin.org/ip", proxies=proxy_dict, timeout=timeout)
-            if response.status_code == 200:
-                working_proxies.append(proxy)
-            else:
-                bad_proxies.append(proxy)
-        except requests.RequestException:
-            bad_proxies.append(proxy)
-
-        checked_count += 1
-
-        # 🔹 हर 5 प्रॉक्सी के बाद अपडेट भेजो
-        if checked_count % 5 == 0 or checked_count == total_proxies:
-            await message.edit_text(f"🔄 Checking Proxies...\n✅ Working: {len(working_proxies)}\n❌ Not Working: {len(bad_proxies)}\n⏳ Total Checked: {checked_count}/{total_proxies}")
-
-        await asyncio.sleep(0.5)  
-
-    # 🔹 रिजल्ट फाइल बनाएं
-    working_file = "maut ✅.txt"
-    bad_file = "maut ❌.txt"
-
-    with open(working_file, "w") as wf:
-        wf.write("\n".join(working_proxies))
-
-    with open(bad_file, "w") as bf:
-        bf.write("\n".join(bad_proxies))
-
-    return working_file, bad_file, len(working_proxies), len(bad_proxies)
-
-# 🔹 जब यूज़र कोई फ़ाइल भेजे
+# 🔹 जब यूज़र कोई फ़ाइल भेजे (हर बार चेक होगा)
 @dp.message(lambda message: message.document)
 async def handle_document(message: types.Message):
     user_id = message.from_user.id
 
-    if user_id not in verified_users:
+    if not await is_user_member(user_id):  # 🔸 हर बार चेक होगा
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)],
@@ -165,6 +108,54 @@ async def handle_document(message: types.Message):
     os.remove(file_path)
     os.remove(working_file)
     os.remove(bad_file)
+
+# 🔹 प्रॉक्सी चेक करने का फ़ंक्शन
+async def check_proxies(file_path, message):
+    timeout = 5
+    working_proxies = []
+    bad_proxies = []
+
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as file:
+        proxies = file.read().splitlines()
+
+    total_proxies = len(proxies)
+    checked_count = 0
+
+    for proxy in proxies:
+        proxy = proxy.strip()
+        if not proxy:
+            continue  
+
+        proxy_dict = {"http": f"http://{proxy}", "https": f"http://{proxy}"}
+
+        try:
+            response = requests.get("http://httpbin.org/ip", proxies=proxy_dict, timeout=timeout)
+            if response.status_code == 200:
+                working_proxies.append(proxy)
+            else:
+                bad_proxies.append(proxy)
+        except requests.RequestException:
+            bad_proxies.append(proxy)
+
+        checked_count += 1
+
+        # 🔹 हर 5 प्रॉक्सी के बाद अपडेट भेजो
+        if checked_count % 5 == 0 or checked_count == total_proxies:
+            await message.edit_text(f"🔄 Checking Proxies...\n✅ Working: {len(working_proxies)}\n❌ Not Working: {len(bad_proxies)}\n⏳ Total Checked: {checked_count}/{total_proxies}")
+
+        await asyncio.sleep(0.5)  
+
+    # 🔹 रिजल्ट फाइल बनाएं
+    working_file = "maut ✅.txt"
+    bad_file = "maut ❌.txt"
+
+    with open(working_file, "w") as wf:
+        wf.write("\n".join(working_proxies))
+
+    with open(bad_file, "w") as bf:
+        bf.write("\n".join(bad_proxies))
+
+    return working_file, bad_file, len(working_proxies), len(bad_proxies)
 
 # 🔹 बॉट स्टार्ट करने का तरीका
 async def main():
