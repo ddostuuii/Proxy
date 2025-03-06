@@ -1,30 +1,74 @@
 import os
 import requests
 import asyncio
+import json
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
-# 🔹 टेलीग्राम बॉट टोकन और चैनल लिंक
-BOT_TOKEN = "7612290520:AAHUwfiZdxhmZ-JhNqM6cDdXV9QCWkSm9fA"  # अपना बॉट टोकन डालें
-CHANNEL_ID = -1002363906868  # अपने चैनल का ID डालें
-CHANNEL_LINK = "https://t.me/seedhe_maut"  # चैनल का इन्वाइट लिंक
+# 🔹 बॉट टोकन और चैनल लिंक
+BOT_TOKEN = "7612290520:AAHUwfiZdxhmZ-JhNqM6cDdXV9QCWkSm9fA"
+CHANNEL_ID = -1002363906868
+CHANNEL_LINK = "https://t.me/seedhe_maut"
+
+# 🔹 एडमिन और अप्रूव लिस्ट फ़ाइल
+ADMINS = [7017469802, 987654321]  # एडमिन की Telegram ID डालें
+USERS_DB = "users.json"
 
 # 🔹 बॉट सेटअप
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 dp = Dispatcher()
 
-# 🔹 Reply Keyboard बनाएं
+# 🔹 Reply Keyboard
 sendKeyboard = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="✅ I've Joined")]
-    ],
+    keyboard=[[KeyboardButton(text="✅ I've Joined")]],
     resize_keyboard=True
 )
 
-# 🔹 यूजर चैनल में जॉइन है या नहीं (हर बार चेक होगा)
+# 🔹 यूजर डेटा लोड/सेव करें
+def load_users():
+    if os.path.exists(USERS_DB):
+        with open(USERS_DB, "r") as f:
+            return json.load(f)
+    return {"users": [], "blocked": [], "approved": []}
+
+def save_users(data):
+    with open(USERS_DB, "w") as f:
+        json.dump(data, f, indent=4)
+
+users_data = load_users()
+
+# 🔹 यूजर एड करें
+def add_user(user_id):
+    if user_id not in users_data["users"]:
+        users_data["users"].append(user_id)
+        save_users(users_data)
+
+# 🔹 ब्लॉक/अनब्लॉक फंक्शन
+def block_user(user_id):
+    if user_id not in users_data["blocked"]:
+        users_data["blocked"].append(user_id)
+        save_users(users_data)
+
+def unblock_user(user_id):
+    if user_id in users_data["blocked"]:
+        users_data["blocked"].remove(user_id)
+        save_users(users_data)
+
+# 🔹 यूजर अप्रूवल फंक्शन
+def approve_user(user_id):
+    if user_id not in users_data["approved"]:
+        users_data["approved"].append(user_id)
+        save_users(users_data)
+
+def disapprove_user(user_id):
+    if user_id in users_data["approved"]:
+        users_data["approved"].remove(user_id)
+        save_users(users_data)
+
+# 🔹 चैनल जॉइन स्टेटस चेक करें
 async def is_user_member(user_id):
     try:
         member = await bot.get_chat_member(CHANNEL_ID, user_id)
@@ -37,18 +81,20 @@ async def is_user_member(user_id):
 async def start(message: types.Message):
     user_id = message.from_user.id
 
-    if not await is_user_member(user_id):  # 🔸 हर बार चेक होगा
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)]
-            ]
-        )
-        await message.reply("⚠ **To use this bot, please join our channel first!**", reply_markup=keyboard)
-        await message.reply("🔹 Click the button below after joining the channel:", reply_markup=sendKeyboard)
+    if user_id in users_data["blocked"]:
+        await message.reply("🚫 You are blocked from using this bot.")
+        return
+
+    add_user(user_id)
+
+    if not await is_user_member(user_id):
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)]])
+        await message.reply("⚠ **Join our channel to use this bot!**", reply_markup=keyboard)
+        await message.reply("🔹 Click below after joining:", reply_markup=sendKeyboard)
     else:
         await message.reply("✅ You are verified! Now send me a file to check proxies.")
 
-# 🔹 "✅ I've Joined" बटन हैंडलर (Reply Keyboard से)
+# 🔹 "✅ I've Joined" बटन हैंडलर
 @dp.message(lambda message: message.text == "✅ I've Joined")
 async def check_join(message: types.Message):
     user_id = message.from_user.id
@@ -58,116 +104,81 @@ async def check_join(message: types.Message):
     else:
         await message.reply("❌ You haven't joined the channel yet!", reply_markup=sendKeyboard)
 
-# 🔹 जब यूज़र कोई फ़ाइल भेजे (हर बार चेक होगा)
+# 🔹 जब यूज़र कोई फ़ाइल भेजे
 @dp.message(lambda message: message.document)
 async def handle_document(message: types.Message):
     user_id = message.from_user.id
 
-    if not await is_user_member(user_id):  # 🔸 हर बार चेक होगा
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)]
-            ]
-        )
-        await message.reply("⚠ **You must join our channel first!**", reply_markup=keyboard)
-        await message.reply("🔹 Click the button below after joining the channel:", reply_markup=sendKeyboard)
+    if user_id in users_data["blocked"]:
+        await message.reply("🚫 You are blocked from using this bot.")
+        return
+
+    if not await is_user_member(user_id):
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)]])
+        await message.reply("⚠ **Join our channel first!**", reply_markup=keyboard)
+        await message.reply("🔹 Click below after joining:", reply_markup=sendKeyboard)
         return
 
     file_id = message.document.file_id
     file_name = message.document.file_name
 
-    # 🔹 सपोर्टेड टेक्स्ट फॉर्मेट्स
     allowed_formats = [".txt", ".csv", ".log", ".json"]
-    
     if not any(file_name.endswith(ext) for ext in allowed_formats):
-        await message.reply("⚠ Please send a **valid text file** (`.txt`, `.csv`, `.log`, `.json`).")
+        await message.reply("⚠ Please send a valid text file (`.txt`, `.csv`, `.log`, `.json`).")
         return
 
-    # 🔹 फ़ाइल डाउनलोड करें
     file_path = f"downloads/{file_name}"
     os.makedirs("downloads", exist_ok=True)
-    
     file_info = await bot.get_file(file_id)
     await bot.download_file(file_info.file_path, file_path)
 
     msg = await message.reply("🔍 Checking proxies... Please wait.")
 
-    # 🔹 प्रॉक्सी चेक करें (प्रॉसेसिंग स्क्रीन दिखाते हुए)
-    working_file, bad_file, working_count, bad_count = await check_proxies(file_path, msg)
+    # 🔹 अप्रूव और नॉर्मल यूजर लिमिट
+    max_proxies = None if (user_id in ADMINS or user_id in users_data["approved"]) else 200
+    working_file, bad_file, working_count, bad_count = await check_proxies(file_path, msg, max_proxies)
 
-    # 🔹 फाइनल रिजल्ट भेजें
     await msg.edit_text(f"✅ Proxy checking completed!\n\n✅ **Working:** {working_count}\n❌ **Not Working:** {bad_count}")
 
-    # 🔹 वर्किंग प्रॉक्सी भेजो
-    if working_count > 0:
-        with open(working_file, "rb") as file:
-            await message.reply_document(BufferedInputFile(file.read(), working_file))
-    else:
-        await message.reply("❌ No working proxies found!")
+    with open(working_file, "rb") as file:
+        await message.reply_document(BufferedInputFile(file.read(), working_file))
+    with open(bad_file, "rb") as file:
+        await message.reply_document(BufferedInputFile(file.read(), bad_file))
 
-    # 🔹 खराब प्रॉक्सी भेजो
-    if bad_count > 0:
-        with open(bad_file, "rb") as file:
-            await message.reply_document(BufferedInputFile(file.read(), bad_file))
-    else:
-        await message.reply("✅ All proxies are working!")
-
-    # 🔹 क्लीनअप (पुरानी फ़ाइलें हटाएं)
     os.remove(file_path)
     os.remove(working_file)
     os.remove(bad_file)
 
-# 🔹 प्रॉक्सी चेक करने का फ़ंक्शन
-async def check_proxies(file_path, message):
-    timeout = 5
-    working_proxies = []
-    bad_proxies = []
+# 🔹 एडमिन कमांड्स
+@dp.message(Command("approve"))
+async def approve(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
 
-    with open(file_path, "r", encoding="utf-8", errors="ignore") as file:
-        proxies = file.read().splitlines()
+    user_id = int(message.text.split()[1])
+    approve_user(user_id)
+    await message.reply(f"✅ User {user_id} approved for unlimited access!")
 
-    total_proxies = len(proxies)
-    checked_count = 0
+@dp.message(Command("disapprove"))
+async def disapprove(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
 
-    for proxy in proxies:
-        proxy = proxy.strip()
-        if not proxy:
-            continue  
+    user_id = int(message.text.split()[1])
+    disapprove_user(user_id)
+    await message.reply(f"🚫 User {user_id} reverted to normal limit!")
 
-        proxy_dict = {"http": f"http://{proxy}", "https": f"http://{proxy}"}
+@dp.message(Command("approved_users"))
+async def approved_users(message: types.Message):
+    if message.from_user.id not in ADMINS:
+        return await message.reply("🚫 You are not an admin!")
 
-        try:
-            response = requests.get("http://httpbin.org/ip", proxies=proxy_dict, timeout=timeout)
-            if response.status_code == 200:
-                working_proxies.append(proxy)
-            else:
-                bad_proxies.append(proxy)
-        except requests.RequestException:
-            bad_proxies.append(proxy)
+    approved_list = "\n".join(map(str, users_data["approved"])) or "No approved users."
+    await message.reply(f"✅ **Approved Users:**\n{approved_list}")
 
-        checked_count += 1
-
-        # 🔹 हर 5 प्रॉक्सी के बाद अपडेट भेजो
-        if checked_count % 5 == 0 or checked_count == total_proxies:
-            await message.edit_text(f"🔄 Checking Proxies...\n✅ Working: {len(working_proxies)}\n❌ Not Working: {len(bad_proxies)}\n⏳ Total Checked: {checked_count}/{total_proxies}")
-
-        await asyncio.sleep(0.5)  
-
-    # 🔹 रिजल्ट फाइल बनाएं
-    working_file = "maut ✅.txt"
-    bad_file = "maut ❌.txt"
-
-    with open(working_file, "w") as wf:
-        wf.write("\n".join(working_proxies))
-
-    with open(bad_file, "w") as bf:
-        bf.write("\n".join(bad_proxies))
-
-    return working_file, bad_file, len(working_proxies), len(bad_proxies)
-
-# 🔹 बॉट स्टार्ट करने का तरीका
+# 🔹 बॉट स्टार्ट करें
 async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())
