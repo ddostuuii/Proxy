@@ -390,17 +390,22 @@ async def check_proxies(file_path, message, max_proxies=None):
     progress_msg = await message.reply(f"🔄 Checking {total} proxies... Please wait.")
 
     for index, proxy in enumerate(proxies, start=1):
+        proxy_msg = await message.reply(f"🔍 Checking: `{proxy}`...")
+
         try:
             response = requests.get("https://www.google.com", proxies={"http": proxy, "https": proxy}, timeout=5)
             if response.status_code == 200:
                 working_proxies.append(proxy)
+                await proxy_msg.edit_text(f"✅ **Working**\n🔹 Proxy: `{proxy}`\n🔹 Checked by maut @seedhe_maut_bot")
             else:
                 bad_proxies.append(proxy)
+                await proxy_msg.edit_text(f"❌ **Not Working**\n🔹 Proxy: `{proxy}`\n🔹 Checked by maut @seedhe_maut_bot")
         except:
             bad_proxies.append(proxy)
+            await proxy_msg.edit_text(f"❌ **Not Working**\n🔹 Proxy: `{proxy}`\n🔹 Checked by maut @seedhe_maut_bot")
 
-        # 🔹 हर 10 प्रॉक्सी के बाद अपडेट मैसेज भेजें
-        if index % 10 == 0 or index == total:
+        # 🔹 अपडेटेड प्रोग्रेस मैसेज
+        if index % 5 == 0 or index == total:
             await progress_msg.edit_text(f"✅ Checked: {index}/{total}\n✔️ Working: {len(working_proxies)}\n❌ Bad: {len(bad_proxies)}")
 
     working_file = "maut ✅.txt"
@@ -412,6 +417,7 @@ async def check_proxies(file_path, message, max_proxies=None):
         f.write("\n".join(bad_proxies) if bad_proxies else "No bad proxies found.")
 
     return working_file, bad_file, len(working_proxies), len(bad_proxies)
+
 
 
 # 🔹 बॉट स्टार्ट करें
