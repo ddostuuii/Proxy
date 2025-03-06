@@ -2,7 +2,7 @@ import os
 import requests
 import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -27,17 +27,13 @@ async def is_user_member(user_id):
     except Exception:
         return False
 
-# 🔹 /start कमांड (चैनल जॉइन चेक + /maut बटन हाइड)
+# 🔹 /start कमांड (चैनल जॉइन चेक)
 @dp.message(Command("start"))
 async def start(message: types.Message):
     user_id = message.from_user.id
 
     if user_id in verified_users:
-        keyboard = ReplyKeyboardMarkup(
-            keyboard=[[KeyboardButton(text="/maut")]],
-            resize_keyboard=True
-        )
-        await message.reply("✅ You are already verified! Click `/maut` to check proxies.", reply_markup=keyboard)
+        await message.reply("✅ You are already verified! Send me a file to check proxies.")
         return
 
     if not await is_user_member(user_id):
@@ -50,43 +46,18 @@ async def start(message: types.Message):
         await message.reply("⚠ **To use this bot, please join our channel first!**", reply_markup=keyboard)
     else:
         verified_users.add(user_id)
-        keyboard = ReplyKeyboardMarkup(
-            keyboard=[[KeyboardButton(text="/maut")]],
-            resize_keyboard=True
-        )
-        await message.reply("✅ You are verified! Click `/maut` to check proxies.", reply_markup=keyboard)
+        await message.reply("✅ You are verified! Send me a file to check proxies.")
 
-# 🔹 "I've Joined" बटन हैंडलर (अब `/maut` दिखेगा)
+# 🔹 "I've Joined" बटन हैंडलर (अब बॉट का मेन फ़ंक्शन चलेगा)
 @dp.callback_query(lambda call: call.data == "check_join")
 async def check_join(call: types.CallbackQuery):
     user_id = call.from_user.id
 
     if await is_user_member(user_id):
         verified_users.add(user_id)
-        keyboard = ReplyKeyboardMarkup(
-            keyboard=[[KeyboardButton(text="/maut")]],
-            resize_keyboard=True
-        )
-        await call.message.edit_text("✅ Thank you for joining! Now click `/maut` to check proxies.", reply_markup=keyboard)
+        await call.message.edit_text("✅ Thank you for joining! Now send me a file to check proxies.")
     else:
         await call.answer("❌ You haven't joined the channel yet!", show_alert=True)
-
-# 🔹 `/maut` तभी चलेगा जब यूजर वेरिफाइड होगा
-@dp.message(Command("maut"))
-async def maut(message: types.Message):
-    user_id = message.from_user.id
-
-    if user_id not in verified_users:
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)],
-                [InlineKeyboardButton(text="✅ I've Joined", callback_data="check_join")]
-            ]
-        )
-        await message.reply("⚠ **You must join our channel first!**", reply_markup=keyboard)
-        return
-
-    await message.reply("👋 Hello! Send me any **text file** (📄 `.txt`, `.csv`, `.log`, `.json`, etc.), and I will check proxies.")
 
 # 🔹 प्रॉक्सी चेक करने का फ़ंक्शन
 async def check_proxies(file_path, message):
