@@ -269,7 +269,7 @@ async def unban_user(message: types.Message):
     except:
         await message.reply("⚠ Usage: /unban <user_id>")
 
-    @dp.message(Command("add_admin"))
+@dp.message(Command("add_admin"))
 async def add_admin(message: types.Message):
     if message.from_user.id not in ADMINS:
         return await message.reply("🚫 You are not an admin!")
@@ -283,6 +283,7 @@ async def add_admin(message: types.Message):
             await message.reply("⚠ This user is already an admin.")
     except:
         await message.reply("⚠ Usage: /add_admin <user_id>")
+
 
     
     @dp.message(Command("remove_admin"))
