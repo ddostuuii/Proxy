@@ -74,8 +74,8 @@ async def user_info(message: types.Message):
         await message.reply(f"👤 **User ID:** {user_id}\n📌 **Status:** {status}")
     except:
         await message.reply("⚠ Usage: /user_info <user_id>")
-        #bot status
-        @dp.message(Command("bot_stats"))
+# Bot Status
+@dp.message(Command("bot_stats"))
 async def bot_stats(message: types.Message):
     if message.from_user.id not in ADMINS:
         return await message.reply("🚫 You are not an admin!")
