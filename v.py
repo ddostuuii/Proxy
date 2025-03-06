@@ -123,6 +123,7 @@ async def is_user_member(user_id):
 @dp.message(Command("start"))
 async def start(message: types.Message):
     user_id = message.from_user.id
+    first_name = message.from_user.first_name  
 
     if user_id in users_data["blocked"]:
         await message.reply("🚫 You are blocked from using this bot.")
@@ -130,22 +131,36 @@ async def start(message: types.Message):
 
     add_user(user_id)
 
-    if not await is_user_member(user_id):
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)]])
-        await message.reply("⚠ **Join our channel to use this bot!**", reply_markup=keyboard)
-        await message.reply("🔹 Click below after joining:", reply_markup=sendKeyboard)
-    else:
-        await message.reply("✅ You are verified! Now send me a file to check proxies.")
+    welcome_text = f"""
+👋 **Welcome, {first_name}!**  
+I'm your Proxy Checker Bot. 🚀  
 
-# 🔹 "✅ I've Joined" बटन हैंडलर
-@dp.message(lambda message: message.text == "✅ I've Joined")
-async def check_join(message: types.Message):
-    user_id = message.from_user.id
+📌 *With me, you can:*  
+- ✅ Check proxies  
+- 📊 View bot statistics  
+- ⚙ Manage users (Admins Only)  
+
+🔹 **To get started:**  
+1️⃣ *Join our channel:* [Seedhe Maut]({CHANNEL_LINK})  
+2️⃣ *Then press the button below:*  
+"""
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔹 Join Channel", url=CHANNEL_LINK)],
+        [InlineKeyboardButton(text="✅ I've Joined", callback_data="check_join")]
+    ])
+
+    await message.reply(welcome_text, reply_markup=keyboard, parse_mode="Markdown")
+
+@dp.callback_query(lambda call: call.data == "check_join")
+async def check_join_callback(call: types.CallbackQuery):
+    user_id = call.from_user.id
 
     if await is_user_member(user_id):
-        await message.reply("✅ Thank you for joining! Now send me a file to check proxies.", reply_markup=types.ReplyKeyboardRemove())
+        await call.message.edit_text("✅ Thank you for joining! Now send me a file to check proxies.")
     else:
-        await message.reply("❌ You haven't joined the channel yet!", reply_markup=sendKeyboard)
+        await call.answer("❌ You haven't joined the channel yet!", show_alert=True)
+
         
         #brodcast
 user_warnings = {}  # वॉर्निंग स्टोर करने के लिए
