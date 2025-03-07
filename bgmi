@@ -5,49 +5,62 @@ import (
 	"net"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 const (
-	payloadSize   = 1024 // 1 KB packet size
+	payloadSize   = 1024  // 1 KB packet size
 	defaultTarget = "127.0.0.1:8080"
-	concurrency   = 1000 // Number of concurrent connections
-	testDuration  = 10   // Duration in seconds
+	concurrency   = 1000  // Number of concurrent connections
+	testDuration  = 10    // Duration in seconds
 	protocol      = "udp" // Change to "tcp" for TCP mode
 )
+
+var successCount int64
+var errorCount int64
 
 func main() {
 	var wg sync.WaitGroup
 	startTime := time.Now()
-	successCount := 0
-	errorCount := 0
 
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			sendTraffic(id, &successCount, &errorCount)
+			sendTraffic(id)
 		}(i)
 	}
 
 	wg.Wait()
 	elapsed := time.Since(startTime)
 	fmt.Printf("\nTest completed in %v\n", elapsed)
-	fmt.Printf("Successful transmissions: %d\n", successCount)
-	fmt.Printf("Failed transmissions: %d\n", errorCount)
+	fmt.Printf("Successful transmissions: %d\n", atomic.LoadInt64(&successCount))
+	fmt.Printf("Failed transmissions: %d\n", atomic.LoadInt64(&errorCount))
 }
 
-func sendTraffic(id int, successCount *int, errorCount *int) {
-	addr, err := net.ResolveUDPAddr("udp", defaultTarget)
-	if err != nil {
-		fmt.Println("Error resolving address:", err)
+func sendTraffic(id int) {
+	var conn net.Conn
+	var err error
+
+	if protocol == "udp" {
+		addr, err := net.ResolveUDPAddr("udp", defaultTarget)
+		if err != nil {
+			fmt.Println("Error resolving UDP address:", err)
+			atomic.AddInt64(&errorCount, 1)
+			return
+		}
+		conn, err = net.DialUDP("udp", nil, addr)
+	} else if protocol == "tcp" {
+		conn, err = net.Dial("tcp", defaultTarget)
+	} else {
+		fmt.Println("Unsupported protocol:", protocol)
 		os.Exit(1)
 	}
 
-	conn, err := net.DialUDP("udp", nil, addr)
 	if err != nil {
 		fmt.Println("Connection error:", err)
-		*errorCount++
+		atomic.AddInt64(&errorCount, 1)
 		return
 	}
 	defer conn.Close()
@@ -59,10 +72,10 @@ func sendTraffic(id int, successCount *int, errorCount *int) {
 	for time.Since(start).Seconds() < testDuration {
 		_, err := conn.Write(data)
 		if err != nil {
-			*errorCount++
+			atomic.AddInt64(&errorCount, 1)
 			return
 		}
-		*successCount++
+		atomic.AddInt64(&successCount, 1)
 		time.Sleep(1 * time.Millisecond) // Adjust based on target capacity
 	}
 }
