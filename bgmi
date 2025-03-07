@@ -1,0 +1,68 @@
+package main
+
+import (
+	"fmt"
+	"net"
+	"os"
+	"sync"
+	"time"
+)
+
+const (
+	payloadSize   = 1024 // 1 KB packet size
+	defaultTarget = "127.0.0.1:8080"
+	concurrency   = 1000 // Number of concurrent connections
+	testDuration  = 10   // Duration in seconds
+	protocol      = "udp" // Change to "tcp" for TCP mode
+)
+
+func main() {
+	var wg sync.WaitGroup
+	startTime := time.Now()
+	successCount := 0
+	errorCount := 0
+
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			sendTraffic(id, &successCount, &errorCount)
+		}(i)
+	}
+
+	wg.Wait()
+	elapsed := time.Since(startTime)
+	fmt.Printf("\nTest completed in %v\n", elapsed)
+	fmt.Printf("Successful transmissions: %d\n", successCount)
+	fmt.Printf("Failed transmissions: %d\n", errorCount)
+}
+
+func sendTraffic(id int, successCount *int, errorCount *int) {
+	addr, err := net.ResolveUDPAddr("udp", defaultTarget)
+	if err != nil {
+		fmt.Println("Error resolving address:", err)
+		os.Exit(1)
+	}
+
+	conn, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		fmt.Println("Connection error:", err)
+		*errorCount++
+		return
+	}
+	defer conn.Close()
+
+	data := make([]byte, payloadSize)
+
+	// Send packets for the duration of the test
+	start := time.Now()
+	for time.Since(start).Seconds() < testDuration {
+		_, err := conn.Write(data)
+		if err != nil {
+			*errorCount++
+			return
+		}
+		*successCount++
+		time.Sleep(1 * time.Millisecond) // Adjust based on target capacity
+	}
+}
